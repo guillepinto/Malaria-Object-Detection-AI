@@ -10,8 +10,6 @@
 
 Research Group: [Hands-on Computer Vision](https://github.com/semilleroCV)
 
-### Project Page??
-
 > **Overview:** This project aims to detect and classify malaria parasites in blood slide images. Using advanced machine learning and deep learning techniques, we focus on detecting the parasite at the trophozoite stage and classifying infected and uninfected cells. The project is part of a [global challenge](https://zindi.africa/competitions/lacuna-malaria-detection-challenge) to improve medical diagnostics in resource-limited areas, with a special focus on Africa. This challenge is presented as an academic project for the subject Artificial Intelligence II, with the goal of participating and winning in this challenge.
 
 </div> 
