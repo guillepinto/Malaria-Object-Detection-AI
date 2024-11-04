@@ -618,7 +618,6 @@ def main():
         # TensorBoard cannot log Enums, need the raw value
         experiment_config["lr_scheduler_type"] = experiment_config["lr_scheduler_type"].value
         accelerator.init_trackers(args.wandb_project, experiment_config)
-        wandb.run.name = args.output_dir
 
     # ------------------------------------------------------------------------------------------------
     # Run training with evaluation on each epoch
@@ -775,6 +774,7 @@ def main():
     logger.info(f"Test metrics: {metrics}")
 
     if args.with_tracking:
+        wandb.run.name = args.output_dir
         accelerator.end_training()
 
     if args.output_dir is not None:
