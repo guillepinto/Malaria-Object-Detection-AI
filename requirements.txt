@@ -1,0 +1,8 @@
+albumentations >= 1.4.16
+torchmetrics
+datasets
+accelerate
+timm
+pycocotools
+wandb
+git+https://github.com/huggingface/transformers.git
