@@ -3,7 +3,7 @@
 # Malaria Parasite Detection and Classification  
 **Using Blood Slide Images**
 
-[![Project Banner](https://pbs.twimg.com/media/GVVaDq7XEAA6sh_?format=jpg&name=small)](https://zindi.africa/competitions/lacuna-malaria-detection-challenge)
+[![Project Banner](./assets/banner.png)](https://zindi.africa/competitions/lacuna-malaria-detection-challenge)
 
 **Authors:** [Guillermo Pinto](https://github.com/guillepinto), [Miguel Pimiento](https://github.com/pimientoyolo125), [Juan Diego Roa]()  
 **Research Group:** [Hands-on Computer Vision](https://github.com/semilleroCV)  
