@@ -32,7 +32,7 @@ Develop a deep learning-based system to detect malaria parasites in blood slide 
 ---
 
 ### Key Links  
-- **Code:** [GitHub Repository](https://github.com/semilleroCV/challenge-malaria)  
+- **Code:** [GitHub Repository](https://github.com/guillepinto/Malaria-Object-Detection-AI.git)  
 - **Video Explanation:** [YouTube Presentation](#)  
 - **Slides:** [Download Here](#)  
 
@@ -42,8 +42,8 @@ Develop a deep learning-based system to detect malaria parasites in blood slide 
 
 1. **Clone the repository and set up the environment:**  
    ```bash
-   git clone https://github.com/semilleroCV/challenge-malaria
-   cd challenge-malaria
+   git clone https://github.com/guillepinto/Malaria-Object-Detection-AI.git
+   cd Malaria-Object-Detection-AI
 
    # Create and activate the virtual environment
    make create_environment
