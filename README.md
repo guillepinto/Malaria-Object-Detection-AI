@@ -67,17 +67,13 @@ Develop a deep learning-based system to detect malaria parasites in blood slide 
 ### Project Organization  
 
 ```plaintext
-├── LICENSE            <- Open-source license (if applicable).  
-├── README.md          <- This README file.  
-├── notebooks          <- Jupyter notebooks for exploratory analysis and prototyping.  
-├── scripts            <- Scripts for training and automated setup.  
-├── src                <- Main source code for the project.  
-│   ├── config.py      <- Configuration variables and parameters.  
-│   ├── dataset.py     <- Scripts for dataset management.  
-│   └── utils.py       <- General utility functions.  
-├── models             <- Trained models and prediction results.  
-├── make_submission.py <- Generates the final prediction file (submission.csv).  
-└── requirements.txt   <- List of project dependencies.  
+├── LICENSE                         <- Open-source license.  
+├── README.md                       <- This README file.  
+├── yolos.ipynb                     <- Notebook to use Ultralytics models for object detection.  
+├── transformers-no-trainer.ipynb   <- Notebook to use Transformers models for object detection in Hugging Face.  
+├── scripts                         <- Scripts for training and automated setup.  
+├── make_submission.py              <- Generates the final prediction file (submission.csv).  
+└── requirements.txt                <- List of project dependencies.  
 ```
 
 ---
