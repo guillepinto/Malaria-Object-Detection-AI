@@ -25,7 +25,7 @@ Develop a deep learning-based system to detect malaria parasites in blood slide 
 ---
 
 ### Models  
-- **Object Detection:** Leveraging **Transformers (DETR) and YOLOs** for good performance.  
+- **Object Detection:** Leveraging **[Transformers](transformers-no-trainer.ipynb) (DETR) and [YOLOs](yolos.ipynb)** for good performance.  
 - **Supervised Training:** Advanced configurations like mixed precision and checkpoint resumption.  
 - **Experiment Management:** Tracking and logging with **Weights & Biases (W&B)**.  
 
