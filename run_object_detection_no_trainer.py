@@ -50,6 +50,8 @@ from transformers.image_transforms import center_to_corners_format
 from transformers.utils import check_min_version, send_example_telemetry
 from transformers.utils.versions import require_version
 
+from early_stop import EarlyStopping
+
 
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
 check_min_version("4.47.0.dev0")
@@ -184,10 +186,13 @@ def evaluation_loop(
 ) -> dict:
     model.eval()
     metric = MeanAveragePrecision(box_format="xyxy", class_metrics=True)
+    total_loss = 0
 
     for step, batch in enumerate(tqdm(dataloader, disable=not accelerator.is_local_main_process)):
         with torch.no_grad():
             outputs = model(**batch)
+            loss = outputs.loss
+            total_loss += loss.detach().float()
 
         # For metric computation we need to collect ground truth and predicted boxes in the same format
 
@@ -223,10 +228,10 @@ def evaluation_loop(
     # Convert metrics to float
     metrics = {k: round(v.item(), 4) for k, v in metrics.items()}
 
-    return metrics
+    return metrics, total_loss
 
 
-def parse_args():
+def parse_args(args=None):
     parser = argparse.ArgumentParser(description="Finetune a transformers model for object detection task")
     parser.add_argument(
         "--model_name_or_path",
@@ -238,7 +243,7 @@ def parse_args():
         "--dataset_name",
         type=str,
         help="Name of the dataset on the hub.",
-        default="cppe-5",
+        default="SemilleroCV/lacuna_malaria",
     )
     parser.add_argument(
         "--train_val_split",
@@ -248,6 +253,7 @@ def parse_args():
     )
     parser.add_argument(
         "--ignore_mismatched_sizes",
+        default=True,
         action="store_true",
         help="Ignore mismatched sizes between the model and the dataset.",
     )
@@ -270,13 +276,13 @@ def parse_args():
     parser.add_argument(
         "--per_device_train_batch_size",
         type=int,
-        default=8,
+        default=4,
         help="Batch size (per device) for the training dataloader.",
     )
     parser.add_argument(
         "--per_device_eval_batch_size",
         type=int,
-        default=8,
+        default=4,
         help="Batch size (per device) for the evaluation dataloader.",
     )
     parser.add_argument(
@@ -309,7 +315,7 @@ def parse_args():
         default=1e-8,
         help="Epsilon for AdamW optimizer",
     )
-    parser.add_argument("--num_train_epochs", type=int, default=3, help="Total number of training epochs to perform.")
+    parser.add_argument("--num_train_epochs", type=int, default=30, help="Total number of training epochs to perform.")
     parser.add_argument(
         "--max_train_steps",
         type=int,
@@ -363,13 +369,14 @@ def parse_args():
     parser.add_argument(
         "--with_tracking",
         required=False,
+        default=True,
         action="store_true",
         help="Whether to enable experiment trackers for logging.",
     )
     parser.add_argument(
         "--report_to",
         type=str,
-        default="all",
+        default="wandb",
         help=(
             'The integration to report the results and logs to. Supported platforms are `"tensorboard"`,'
             ' `"wandb"`, `"comet_ml"` and `"clearml"`. Use `"all"` (default) to report to all integrations. '
@@ -379,20 +386,35 @@ def parse_args():
     parser.add_argument(
         "--wandb_project",
         type=str,
-        default=None,
+        default="challenge-malaria",
         help=(
             'The name of the project to which the logs will be uploaded on Weights & Biases. Only applicable'
             ' when `--report_to wandb` is passed.'
             ),
     )
-    args = parser.parse_args()
+    parser.add_argument(
+        "--patience",
+        type=int,
+        default=7,
+        help="Number of epochs without improvement before stopping training.",
+    )
+    parser.add_argument(
+        "--dropout",
+        type=float,
+        default=0.1,
+        help="Dropout rate to be applied to the model."
+    )
+    args = parser.parse_args(args)
 
-    # Sanity checks
+    # Sanity checks y asignación de output_dir
     if args.push_to_hub or args.with_tracking:
         if args.output_dir is None:
-            raise ValueError(
-                "Need an `output_dir` to create a repo when `--push_to_hub` or `with_tracking` is specified."
-            )
+            # Asignar un output_dir predeterminado basado en otros parámetros
+            # Reemplazar '/' con '_' para evitar problemas en nombres de directorio
+            safe_model_name = args.model_name_or_path.replace('/', '_')
+            default_output_dir = f"models/{safe_model_name}_{args.lr_scheduler_type}-{args.learning_rate:.2e}-warm{args.num_warmup_steps}"
+            args.output_dir = default_output_dir
+            print(f"No se proporcionó `output_dir`. Usando `output_dir` predeterminado: {default_output_dir}")
 
     if args.output_dir is not None:
         os.makedirs(args.output_dir, exist_ok=True)
@@ -400,8 +422,8 @@ def parse_args():
     return args
 
 
-def main():
-    args = parse_args()
+def main(args_list=None):
+    args = parse_args(args=args_list)
 
     # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
     # information sent is the one passed as arguments along with your Python/PyTorch versions.
@@ -454,15 +476,6 @@ def main():
     # Load dataset
     # In distributed training, the load_dataset function guarantees that only one local process can concurrently
     # download the dataset.
-
-    # def process_image_data(image_data):
-    #     """Procesa las imágenes y asigna la clase NEG (2) si no tienen objetos."""
-    #     if len(image_data["objects"]["categories"]) == 0:
-    #         # Asignar la clase NEG si no hay categorías
-    #         image_data["objects"]["categories"] = [2]  # ID para NEG
-    #         image_data["objects"]["bbox"] = [[0, 0, 0, 0]]  # Puedes dejar el bbox vacío o definir algo genérico
-    #     return image_data
-    
     dataset = load_dataset(args.dataset_name, cache_dir=args.cache_dir, trust_remote_code=args.trust_remote_code)
     # dataset = dataset.map(process_image_data) # Aplica la función a cada ejemplo del dataset
 
@@ -475,9 +488,27 @@ def main():
 
     # Get dataset categories and prepare mappings for label_name <-> label_id
     # categories = dataset["train"].features["objects"].feature["category"].names
-    categories = {0: 'Trophozoite', 1: 'WBC'}
-    id2label = dict(enumerate(categories))
-    label2id = {v: k for k, v in id2label.items()}
+    id2label = {0: 'Trophozoite', 1: 'WBC', 2: 'NEG'}
+    # id2label = dict(enumerate(categories))
+    label2id = {label: idx for idx, label in id2label.items()}
+
+    # # Inspeccionar ejemplos aleatorios
+    # import random
+    
+    # for i in random.sample(range(len(dataset["train"])), 10):
+    #     sample = dataset["train"][i]
+    #     print(f"Sample {i}:")
+    #     print(sample)
+    #     print("-" * 50)
+
+    # # Reduce the dataset size for testing purposes
+    # def reduce_dataset_size(dataset, num_samples):
+    #     return dataset.select(range(min(len(dataset), num_samples)))
+
+    # num_samples = 100  # Number of samples to use for testing
+    # dataset["train"] = reduce_dataset_size(dataset["train"], num_samples)
+    # dataset["validation"] = reduce_dataset_size(dataset["validation"], num_samples)
+    # dataset["test"] = reduce_dataset_size(dataset["test"], num_samples)
 
     # ------------------------------------------------------------------------------------------------
     # Load pretrained config, model and image processor
@@ -489,8 +520,14 @@ def main():
         "trust_remote_code": args.trust_remote_code,
     }
     config = AutoConfig.from_pretrained(
-        args.model_name_or_path, label2id=label2id, id2label=id2label, **common_pretrained_args
+        args.model_name_or_path, label2id=label2id, id2label=id2label, dropout = args.dropout, **common_pretrained_args
     )
+    # Configurar dropout según el modelo
+    # if "yolos" in args.model_name_or_path.lower():
+    #     config.attention_probs_dropout_prob = args.dropout
+    #     config.hidden_dropout_prob = args.dropout
+    # else:
+    #     config.dropout = args.dropout
     model = AutoModelForObjectDetection.from_pretrained(
         args.model_name_or_path,
         config=config,
@@ -500,7 +537,10 @@ def main():
     image_processor = AutoImageProcessor.from_pretrained(
         args.model_name_or_path,
         do_resize=True,
+        image_mean=[0.629, 0.544, 0.597], # mean of the dataset
+        image_std=[0.254, 0.226, 0.241], # std of the dataset
         size={"max_height": args.image_square_size, "max_width": args.image_square_size},
+        # size={"shortest_edge": 800, "longest_edge": 1333},
         do_pad=True,
         pad_size={"height": args.image_square_size, "width": args.image_square_size},
         **common_pretrained_args,
@@ -517,20 +557,29 @@ def main():
                     A.SmallestMaxSize(max_size=max_size, p=1.0),
                     A.RandomSizedBBoxSafeCrop(height=max_size, width=max_size, p=1.0),
                 ],
-                p=0.2,
+                p=0.4,
             ),
-            A.OneOf(
-                [
-                    A.Blur(blur_limit=7, p=0.5),
-                    A.MotionBlur(blur_limit=7, p=0.5),
-                    A.Defocus(radius=(1, 5), alias_blur=(0.1, 0.25), p=0.1),
-                ],
-                p=0.1,
-            ),
-            A.Perspective(p=0.1),
+            # A.OneOf(
+            #     [
+            #         A.Blur(blur_limit=7, p=0.5),
+            #         A.MotionBlur(blur_limit=7, p=0.5),
+            #         A.Defocus(radius=(1, 5), alias_blur=(0.1, 0.25), p=0.1),
+            #     ],
+            #     p=0.1,
+            # ),
+            A.Perspective(p=0.3),
             A.HorizontalFlip(p=0.5),
-            A.RandomBrightnessContrast(p=0.5),
-            A.HueSaturationValue(p=0.1),
+            # A.RandomBrightnessContrast(p=0.5),
+            # A.HueSaturationValue(p=0.1),
+            A.Rotate(limit=15, p=0.4),
+            A.RandomBrightnessContrast(
+                brightness_limit=0.05,  # Para +/-5% de brillo
+                contrast_limit=0.0,     # Si no deseas alterar el contraste
+                p=0.4
+            ),
+            A.RandomGamma(gamma_limit=(93, 107), p=0.4),
+            A.Blur(blur_limit=3, p=0.4),
+            A.GaussNoise(var_limit=(0.0, 0.02), p=0.4),
         ],
         bbox_params=A.BboxParams(format="coco", label_fields=["category"], clip=True, min_area=25),
     )
@@ -670,6 +719,15 @@ def main():
     # update the progress_bar if load from checkpoint
     progress_bar.update(completed_steps)
 
+    # Initialize EarlyStopping
+    early_stopping = EarlyStopping(
+        patience=args.patience,         
+        verbose=True,
+        delta=0.001,                     
+        accelerator=accelerator,        
+        output_dir=args.output_dir      
+    )
+
     for epoch in range(starting_epoch, args.num_train_epochs):
         model.train()
         if args.with_tracking:
@@ -726,14 +784,19 @@ def main():
                 break
 
         logger.info("***** Running evaluation *****")
-        metrics = evaluation_loop(model, image_processor, accelerator, valid_dataloader, id2label)
+        metrics, val_loss = evaluation_loop(model, image_processor, accelerator, valid_dataloader, id2label)
+        map_50 = metrics.get('map_50', None)
 
         logger.info(f"epoch {epoch}: {metrics}")
+
+        # Llamar a EarlyStopping con el epoch actual
+        early_stopping(map_50, epoch+1)
 
         if args.with_tracking:
             accelerator.log(
                 {
                     "train_loss": total_loss.item() / len(train_dataloader),
+                    "val_loss": val_loss.item() / len(valid_dataloader),
                     **metrics,
                     "epoch": epoch,
                     "step": completed_steps,
@@ -757,6 +820,10 @@ def main():
                     token=args.hub_token,
                 )
 
+        if early_stopping.early_stop:
+            print("Early stopping activated. Training stopped.")
+            break
+
         if args.checkpointing_steps == "epoch":
             output_dir = f"epoch_{epoch}"
             if args.output_dir is not None:
@@ -768,7 +835,7 @@ def main():
     # ------------------------------------------------------------------------------------------------
 
     logger.info("***** Running evaluation on test dataset *****")
-    metrics = evaluation_loop(model, image_processor, accelerator, test_dataloader, id2label)
+    metrics, _ = evaluation_loop(model, image_processor, accelerator, test_dataloader, id2label)
     metrics = {f"test_{k}": v for k, v in metrics.items()}
 
     logger.info(f"Test metrics: {metrics}")
