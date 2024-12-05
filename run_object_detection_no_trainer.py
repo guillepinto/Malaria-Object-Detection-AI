@@ -52,7 +52,6 @@ from transformers.utils.versions import require_version
 
 from early_stop import EarlyStopping
 
-
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
 check_min_version("4.47.0.dev0")
 
@@ -60,7 +59,6 @@ logging.basicConfig(level=logging.INFO)
 logger = get_logger(__name__)
 
 require_version("datasets>=2.0.0", "To fix: pip install -r examples/pytorch/semantic-segmentation/requirements.txt")
-
 
 # Copied from examples/pytorch/object-detection/run_object_detection.format_image_annotations_as_coco
 def format_image_annotations_as_coco(
@@ -216,7 +214,7 @@ def evaluation_loop(
 
     metrics = metric.compute()
 
-    # Replace list of per class metrics with separate metric for each class
+    # List of per class metrics with separate metric for each class
     classes = metrics.pop("classes")
     map_per_class = metrics.pop("map_per_class")
     mar_100_per_class = metrics.pop("mar_100_per_class")
@@ -406,11 +404,11 @@ def parse_args(args=None):
     )
     args = parser.parse_args(args)
 
-    # Sanity checks y asignación de output_dir
+    # Sanity checks and output_dir assignment
     if args.push_to_hub or args.with_tracking:
         if args.output_dir is None:
-            # Asignar un output_dir predeterminado basado en otros parámetros
-            # Reemplazar '/' con '_' para evitar problemas en nombres de directorio
+            # Assign a default output_dir based on other parameters
+            # Replace '/' with '_' to avoid problems in directory names
             safe_model_name = args.model_name_or_path.replace('/', '_')
             default_output_dir = f"models/{safe_model_name}_{args.lr_scheduler_type}-{args.learning_rate:.2e}-warm{args.num_warmup_steps}"
             args.output_dir = default_output_dir
@@ -477,7 +475,6 @@ def main(args_list=None):
     # In distributed training, the load_dataset function guarantees that only one local process can concurrently
     # download the dataset.
     dataset = load_dataset(args.dataset_name, cache_dir=args.cache_dir, trust_remote_code=args.trust_remote_code)
-    # dataset = dataset.map(process_image_data) # Aplica la función a cada ejemplo del dataset
 
     # If we don't have a validation split, split off a percentage of train as validation.
     args.train_val_split = None if "validation" in dataset.keys() else args.train_val_split
@@ -488,27 +485,9 @@ def main(args_list=None):
 
     # Get dataset categories and prepare mappings for label_name <-> label_id
     # categories = dataset["train"].features["objects"].feature["category"].names
-    id2label = {0: 'Trophozoite', 1: 'WBC', 2: 'NEG'}
+    id2label = {0: 'Trophozoite', 1: 'WBC'} # it is not necessary to place the negative class because DETR has the capability of not preceding objects 
     # id2label = dict(enumerate(categories))
     label2id = {label: idx for idx, label in id2label.items()}
-
-    # # Inspeccionar ejemplos aleatorios
-    # import random
-    
-    # for i in random.sample(range(len(dataset["train"])), 10):
-    #     sample = dataset["train"][i]
-    #     print(f"Sample {i}:")
-    #     print(sample)
-    #     print("-" * 50)
-
-    # # Reduce the dataset size for testing purposes
-    # def reduce_dataset_size(dataset, num_samples):
-    #     return dataset.select(range(min(len(dataset), num_samples)))
-
-    # num_samples = 100  # Number of samples to use for testing
-    # dataset["train"] = reduce_dataset_size(dataset["train"], num_samples)
-    # dataset["validation"] = reduce_dataset_size(dataset["validation"], num_samples)
-    # dataset["test"] = reduce_dataset_size(dataset["test"], num_samples)
 
     # ------------------------------------------------------------------------------------------------
     # Load pretrained config, model and image processor
@@ -522,12 +501,6 @@ def main(args_list=None):
     config = AutoConfig.from_pretrained(
         args.model_name_or_path, label2id=label2id, id2label=id2label, dropout = args.dropout, **common_pretrained_args
     )
-    # Configurar dropout según el modelo
-    # if "yolos" in args.model_name_or_path.lower():
-    #     config.attention_probs_dropout_prob = args.dropout
-    #     config.hidden_dropout_prob = args.dropout
-    # else:
-    #     config.dropout = args.dropout
     model = AutoModelForObjectDetection.from_pretrained(
         args.model_name_or_path,
         config=config,
@@ -540,7 +513,6 @@ def main(args_list=None):
         image_mean=[0.629, 0.544, 0.597], # mean of the dataset
         image_std=[0.254, 0.226, 0.241], # std of the dataset
         size={"max_height": args.image_square_size, "max_width": args.image_square_size},
-        # size={"shortest_edge": 800, "longest_edge": 1333},
         do_pad=True,
         pad_size={"height": args.image_square_size, "width": args.image_square_size},
         **common_pretrained_args,
@@ -554,32 +526,22 @@ def main(args_list=None):
         [
             A.Compose(
                 [
-                    A.SmallestMaxSize(max_size=max_size, p=1.0),
-                    A.RandomSizedBBoxSafeCrop(height=max_size, width=max_size, p=1.0),
+                    A.SmallestMaxSize(max_size=max_size, p=1.0), # Resizes the image to the smallest maximum size.
+                    A.RandomSizedBBoxSafeCrop(height=max_size, width=max_size, p=1.0), # Randomly crops the image to a specified size while ensuring bounding boxes remain valid.
                 ],
                 p=0.4,
             ),
-            # A.OneOf(
-            #     [
-            #         A.Blur(blur_limit=7, p=0.5),
-            #         A.MotionBlur(blur_limit=7, p=0.5),
-            #         A.Defocus(radius=(1, 5), alias_blur=(0.1, 0.25), p=0.1),
-            #     ],
-            #     p=0.1,
-            # ),
-            A.Perspective(p=0.3),
-            A.HorizontalFlip(p=0.5),
-            # A.RandomBrightnessContrast(p=0.5),
-            # A.HueSaturationValue(p=0.1),
-            A.Rotate(limit=15, p=0.4),
-            A.RandomBrightnessContrast(
-                brightness_limit=0.05,  # Para +/-5% de brillo
-                contrast_limit=0.0,     # Si no deseas alterar el contraste
+            A.Perspective(p=0.3), # Applies a perspective transformation to the image.
+            A.HorizontalFlip(p=0.5), # Horizontally flips the image with a given probability.
+            A.Rotate(limit=15, p=0.4), # Rotates the image within a specified degree range.
+            A.RandomBrightnessContrast( # # Randomly adjusts the brightness and contrast of the image.
+                brightness_limit=0.05,  
+                contrast_limit=0.0,     
                 p=0.4
             ),
-            A.RandomGamma(gamma_limit=(93, 107), p=0.4),
-            A.Blur(blur_limit=3, p=0.4),
-            A.GaussNoise(var_limit=(0.0, 0.02), p=0.4),
+            A.RandomGamma(gamma_limit=(93, 107), p=0.4), # Randomly adjusts the gamma of the image.
+            A.Blur(blur_limit=3, p=0.4), # Applies a blur effect to the image.
+            A.GaussNoise(var_limit=(0.0, 0.02), p=0.4), # Adds Gaussian noise to the image.
         ],
         bbox_params=A.BboxParams(format="coco", label_fields=["category"], clip=True, min_area=25),
     )
@@ -738,7 +700,7 @@ def main(args_list=None):
         else:
             active_dataloader = train_dataloader
 
-        for step, batch in enumerate(active_dataloader):
+        for _, batch in enumerate(active_dataloader):
             with accelerator.accumulate(model):
                 outputs = model(**batch)
                 loss = outputs.loss
