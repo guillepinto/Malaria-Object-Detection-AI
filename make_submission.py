@@ -14,6 +14,13 @@ def main():
     parser.add_argument("--test_path", type=str, required=True, help="Path to the test images directory")
     args = parser.parse_args()
 
+    # Check if the test path exists
+    if not os.path.exists(args.test_path):
+        print(f"Error: The test path '{args.test_path}' does not exist.")
+        return
+
+    submission = pd.DataFrame()  # Initialize submission variable
+
     try:
         # Cargar el modelo preentrenado
         image_processor = AutoImageProcessor.from_pretrained(args.model_name)
