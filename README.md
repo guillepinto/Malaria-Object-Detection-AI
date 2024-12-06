@@ -32,7 +32,7 @@ Develop a deep learning-based system to detect malaria parasites in blood slide 
 ---
 
 ### Key Links  
-- **Code:** [GitHub Repository](https://github.com/guillepinto/Malaria-Object-Detection-AI.git)  
+- **Code:** [All in one notebook](all-in-one.ipynb)  
 - **Video Explanation:** [YouTube Presentation](#)  
 - **Slides:** [Download Here](https://www.canva.com/design/DAGX3dxoRXM/q5bpU-rAObR3xYvKmbG4pA/edit?utm_content=DAGX3dxoRXM&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton)  
 
