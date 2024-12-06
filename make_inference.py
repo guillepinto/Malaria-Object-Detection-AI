@@ -82,3 +82,7 @@ for ax, image_id in zip(axes.flatten(), image_ids):
 # Adjust layout and show the plot
 plt.tight_layout()
 plt.show()
+# Save the plot as a PNG file
+output_file = "inference.png"
+plt.savefig(output_file)
+print(f"Plot saved as {output_file}")
