@@ -64,11 +64,13 @@ Develop a deep learning-based system to detect malaria parasites in blood slide 
 
 ```plaintext
 ├── LICENSE                         <- Open-source license.  
-├── README.md                       <- This README file.  
+├── README.md                       <- This README file.
+├── all-in-one.ipynb                <- Notebook for using the two libraries (i.e. Transformers and Ultralitycs) for object detection.  
 ├── yolos.ipynb                     <- Notebook to use Ultralytics models for object detection.  
 ├── transformers-no-trainer.ipynb   <- Notebook to use Transformers models for object detection in Hugging Face.  
 ├── scripts                         <- Scripts for training and automated setup.  
-├── make_submission.py              <- Generates the final prediction file (submission.csv).  
+├── make_submission.py              <- Generates the final prediction file (submission.csv).
+├── make_inference.py               <- Generate a plot with the inference on the indicated images from a csv.
 └── requirements.txt                <- List of project dependencies.  
 ```
 
