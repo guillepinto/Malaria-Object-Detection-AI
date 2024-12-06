@@ -19,12 +19,16 @@ def main():
         print(f"Error: The test path '{args.test_path}' does not exist.")
         return
 
+    # Check if CUDA is available and set the device
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
+
     submission = pd.DataFrame()  # Initialize submission variable
 
     try:
         # Cargar el modelo preentrenado
         image_processor = AutoImageProcessor.from_pretrained(args.model_name)
-        model = AutoModelForObjectDetection.from_pretrained(args.model_name)
+        model = AutoModelForObjectDetection.from_pretrained(args.model_name).to(device)
 
         # Obtener una lista de todos los archivos de imagen en el directorio
         image_files = os.listdir(args.test_path)
@@ -39,14 +43,14 @@ def main():
             image = Image.open(img_path)
 
             # Preparar la imagen para el modelo
-            inputs = image_processor(images=image, return_tensors="pt")
+            inputs = image_processor(images=image, return_tensors="pt").to(device)
 
             with torch.no_grad():
                 outputs = model(**inputs)
 
             # Post-procesar las predicciones del modelo
             width, height = image.size
-            target_sizes = torch.tensor([height, width]).unsqueeze(0)
+            target_sizes = torch.tensor([height, width]).unsqueeze(0).to(device)
             results = image_processor.post_process_object_detection(outputs, threshold=0.5, target_sizes=target_sizes)[0]
 
             if not results["boxes"].tolist():
