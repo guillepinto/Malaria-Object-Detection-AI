@@ -15,9 +15,6 @@ else:
 
 df = pd.read_csv(submission_file)
 
-# Determine the image folder based on the CSV file name
-image_folder = 'train' if os.path.basename(submission_file) == 'Train.csv' else 'test'
-
 # Get image IDs from command-line arguments or select random images
 if len(sys.argv) > 2:
     image_ids = sys.argv[2:5]
@@ -48,7 +45,7 @@ for ax, image_id in zip(axes.flatten(), image_ids):
     # Iterate over the selected images      
     for ax, image_id in zip(axes.flatten(), image_ids):
         # Load the image
-        image_path = os.path.join(image_folder_path, image_folder, image_id)
+        image_path = os.path.join(image_folder_path, image_id)
         image = Image.open(image_path)
         ax.imshow(image)
         ax.set_title(image_id)
