@@ -58,10 +58,6 @@ Develop a deep learning-based system to detect malaria parasites in blood slide 
    wandb login
    ```
 
-3. **Dataset usage:**  
-   - Ensure you provide the full dataset name with the `--dataset_name` argument.  
-   Example: `SemilleroCV/lacuna_malaria`.
-
 ---
 
 ### Project Organization  
