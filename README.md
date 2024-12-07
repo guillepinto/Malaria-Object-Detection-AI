@@ -33,7 +33,7 @@ Develop a deep learning-based system to detect malaria parasites in blood slide 
 
 ### Key Links  
 - **Code:** [All in one notebook](all-in-one.ipynb)  
-- **Video Explanation:** [YouTube Presentation](#)  
+- **Video Explanation:** [[YouTube Presentation](https://www.youtube.com/watch?v=M0ZXuOnJOxk)] [[Drive file](https://drive.google.com/file/d/1nyWBFQvFXW-8uGEEif_7jlLnBWf1eHuM/view?usp=sharing)]
 - **Slides:** [Download Here](https://www.canva.com/design/DAGX3dxoRXM/q5bpU-rAObR3xYvKmbG4pA/edit?utm_content=DAGX3dxoRXM&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton)  
 
 ---
